@@ -3,27 +3,12 @@ package spaceinvaders;
 import java.awt.Color;
 import java.awt.Graphics;
 
-public class Alien {
-	float x;
-	float y;
-	int width;
-	int height;
-	Color drawColor;
+public class Alien extends GameObject{
+
 	
-	public Alien(float xPos, float yPos, int w, int h, Color col) {
-		width = w;
-		height = h;
-		x = xPos;
-		y = yPos;
-		drawColor = col;
+	public Alien(float xPos, float yPos, int w, int h, Color col, float moveSpeed) {
+		super(xPos, yPos, w, h, col, moveSpeed);
 	}
-	
-	public void draw(Graphics g) {
-		g.setColor(drawColor);
-		g.fillRect((int) x, (int) y,  width, height);
-		g.setColor(Color.BLACK);
-	}
-	
 	
 }
 
