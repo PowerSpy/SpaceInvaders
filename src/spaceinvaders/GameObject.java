@@ -3,6 +3,8 @@ package spaceinvaders;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+
 
 public class GameObject{
 	float x;
@@ -20,9 +22,11 @@ public class GameObject{
 	boolean keepInBounds = true;
 	boolean isActive;
 	
+	BufferedImage image = null;
+	
 	Rectangle2D collider;
 	
-	public GameObject(float xPos, float yPos, int w, int h, Color col, float moveSpeed) {
+	public GameObject(float xPos, float yPos, int w, int h, Color col, float moveSpeed, BufferedImage img) {
 		width = w;
 		height = h;
 		x = xPos;
@@ -32,9 +36,33 @@ public class GameObject{
 		
 		isActive = true;
 		collider = new Rectangle2D.Double(x, y, width, height);
+		
+		if (img != null) {
+			try {
+				img.getRGB(0, 0);
+				image = img;
+			} catch(Exception e) {
+				System.out.println("Image Load Error: " + e.getMessage());
+				image = null;
+			}
+		}
 	}
 	
 	public void draw(Graphics g) {
+		if (image != null) {
+			try {
+				g.drawImage(image, (int) x, (int) y, width, height, null);
+			} catch(Exception e) {
+				System.out.println("Error Drawing Image: " + e.getMessage());
+				fallbackDraw(g);
+			}
+		}
+		else {
+			fallbackDraw(g);
+		}
+	}
+	
+	public void fallbackDraw(Graphics g) {
 		g.setColor(drawColor);
 		g.fillRect((int) x, (int) y,  width, height);
 		g.setColor(Color.BLACK);

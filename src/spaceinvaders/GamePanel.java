@@ -8,12 +8,15 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Stack;
 
 import javax.swing.Timer;
-
+import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
 public class GamePanel extends JPanel implements KeyListener, ActionListener{
@@ -36,6 +39,8 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	
 	int score;
 	
+	BufferedImage alienImageGreen;
+	
 	public GamePanel() {
 		
 		score = 0;		
@@ -44,6 +49,13 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		reloadAmmo();
 		bullets = new ArrayList<Bullet>();
 		aliens = new ArrayList<Alien>();
+		
+		
+		try {
+			alienImageGreen = ImageIO.read(new File("SpaceInvadersSprites/alien_sprite_green.png"));
+		} catch (IOException e) {
+			System.out.println("Failed to load alien image green: " + e.getMessage());
+		}
 		
 		redrawTimer = new Timer(1000/60, this);
 		redrawTimer.start();
@@ -55,7 +67,7 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		alienRandomTimer.start();
 		
 		for(int i = 0; i < 5; i++) {
-			aliens.add(new Alien(80 + (100 * i), 70, 40, 40, Color.GREEN, 20));
+			aliens.add(new Alien(80 + (100 * i), 70, 60, 45, Color.GREEN, 20, 1, alienImageGreen));
 		}
 		
 		setFocusable(true);
@@ -67,7 +79,7 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	public void reloadAmmo() {
 		bulletStack.clear();
 		for (int i = 0; i < 6; i++) {
-			bulletStack.push(new Bullet(-10, -10, 5, 10, Color.RED, 800));
+			bulletStack.push(new Bullet(-10, -10, 5, 10, Color.RED, 800, 1));
 		}
 	}
 	
@@ -188,7 +200,10 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		for(Bullet bullet: bullets) {
 			for(Alien alien: aliens) {
 				if(bullet.collider.intersects(alien.collider)) {
-					alien.isActive = false;
+					alien.health -= bullet.damage;
+					if(alien.health <= 0) {
+						alien.isActive = false;
+					}
 					bullet.isActive = false;
 					score++;
 				}
