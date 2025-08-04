@@ -2,12 +2,14 @@ package spaceinvaders;
 
 import java.awt.Color;
 import java.awt.Event;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Stack;
 
 import javax.swing.Timer;
@@ -19,6 +21,7 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	Player player = new Player(275, 710, 50, 50, Color.PINK, 300);
 	
 	Timer redrawTimer;
+	Timer alienRandomTimer;
 	
 	long lastTime = System.nanoTime();
 	float deltaTime;
@@ -31,7 +34,11 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	
 	boolean reloading = false;
 	
+	int score;
+	
 	public GamePanel() {
+		
+		score = 0;		
 		
 		bulletStack = new Stack<Bullet>();
 		reloadAmmo();
@@ -41,8 +48,14 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		redrawTimer = new Timer(1000/60, this);
 		redrawTimer.start();
 		
+		alienRandomTimer = new Timer(1000/10, ev -> {
+			randomlySwitchAlienDirections();
+		});
+		
+		alienRandomTimer.start();
+		
 		for(int i = 0; i < 5; i++) {
-			aliens.add(new Alien(80 + (100 * i), 70, 40, 40, Color.GREEN, 5));
+			aliens.add(new Alien(80 + (100 * i), 70, 40, 40, Color.GREEN, 20));
 		}
 		
 		setFocusable(true);
@@ -76,6 +89,11 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 			alien.draw(g);
 		}
 		
+		g.setColor(Color.WHITE);
+		
+		g.drawLine((int) (player.x + (player.width / 2.0f)), (int) player.y, (int) (player.x + (player.width / 2.0f)), 0);
+
+		
 		
 		int totalAmmo = 6;
 		int bulletDisplayW = 15;
@@ -96,9 +114,21 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
                 g.drawRect(startX + i * (bulletDisplayW + spacing), startY, bulletDisplayW, bulletDisplayH);
             }
         }
+        
+        drawScore(g);
 				
 		lastTime = System.nanoTime();
 		
+	}
+	
+	public void randomlySwitchAlienDirections() {
+		for(Alien alien: aliens) {
+			if(!alien.isActive) continue;
+			
+			if(Math.random() < 0.1) {
+				alien.direction *= -1;
+			}
+		}
 	}
 
 	@Override
@@ -145,6 +175,55 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		}
 		
 	}
+	
+	public void drawScore(Graphics g) {
+		g.setColor(Color.WHITE);
+		g.setFont(new Font("Arial", Font.BOLD, 30));
+		
+		g.drawString("Score: " + score, 10, 30);
+	}
+	
+	public void checkBulletCollision() {
+
+		for(Bullet bullet: bullets) {
+			for(Alien alien: aliens) {
+				if(bullet.collider.intersects(alien.collider)) {
+					alien.isActive = false;
+					bullet.isActive = false;
+					score++;
+				}
+			}
+		}
+	}
+	
+	public void moveAliensRandomly(float deltaTime) {
+		for(Alien alien: aliens) {
+			if(!alien.isActive) continue;
+			
+			float originalX = alien.x;
+			
+			float moveAmount = alien.speed/4 * deltaTime * alien.direction;
+			
+			alien.x += moveAmount;
+			alien.collider.setRect(alien.x - 5, alien.y, alien.width + 10, alien.height);
+			
+			boolean overlaps = false;
+			for(Alien other: aliens) {
+				if(other != alien && other.isActive && alien.collider.intersects(other.collider)) {
+					overlaps = true;
+					break;
+				}
+			}
+			
+			alien.collider.setRect(alien.x, alien.y, alien.width, alien.height);
+			
+			if (overlaps || alien.x < 0 || alien.x + alien.width > 600) {
+				alien.direction *= -1;
+				alien.x = originalX;
+				alien.collider.setRect(alien.x, alien.y, alien.width, alien.height);
+			}
+		}
+	}
 
 	@Override
 	public void keyReleased(KeyEvent e) {
@@ -166,11 +245,36 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		// TODO Auto-generated method stub
+		
+		checkBulletCollision();
 		player.update(deltaTime);
 		
-		for(Bullet bullet: bullets) {
-			bullet.update(deltaTime);
+		Iterator<Bullet> iterBullet = bullets.iterator();
+		
+		while(iterBullet.hasNext()) {
+			Bullet bullet = iterBullet.next();
+			bullet.checkOutOfBounds();
+			if(!bullet.isActive) {
+				iterBullet.remove();
+			}
+			else {
+				bullet.update(deltaTime);
+			}
 		}
+		
+		Iterator<Alien> iterAlien = aliens.iterator();
+		
+		while(iterAlien.hasNext()) {
+			Alien alien = iterAlien.next();
+			if(!alien.isActive) {
+				iterAlien.remove();
+			}
+			else {
+				moveAliensRandomly(deltaTime);
+				alien.update(deltaTime);
+			}
+		}
+		
 		
 		repaint();
 	}
