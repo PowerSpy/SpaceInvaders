@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Event;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.RadialGradientPaint;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -16,6 +17,7 @@ import java.util.Iterator;
 import java.util.Stack;
 
 import javax.swing.Timer;
+
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
@@ -25,6 +27,7 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	
 	Timer redrawTimer;
 	Timer alienRandomTimer;
+	Timer alienSpawnTimer;
 	
 	long lastTime = System.nanoTime();
 	float deltaTime;
@@ -38,12 +41,17 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	boolean reloading = false;
 	
 	int score;
+	int lives;
 	
 	BufferedImage alienImageGreen;
+	BufferedImage alienImageRed;
+	BufferedImage alienImageCyan;
+	BufferedImage alienImagePurple;
 	
 	public GamePanel() {
 		
-		score = 0;		
+		score = 0;	
+		lives = 3;
 		
 		bulletStack = new Stack<Bullet>();
 		reloadAmmo();
@@ -51,11 +59,14 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		aliens = new ArrayList<Alien>();
 		
 		
-		try {
-			alienImageGreen = ImageIO.read(new File("SpaceInvadersSprites/alien_sprite_green.png"));
-		} catch (IOException e) {
-			System.out.println("Failed to load alien image green: " + e.getMessage());
-		}
+		
+		alienImageGreen = loadImg("SpaceInvadersSprites/alien_sprite_green.png", "green alien");		
+		alienImageRed = loadImg("SpaceInvadersSprites/alien_sprite_red.png", "red alien");	
+		alienImageCyan = loadImg("SpaceInvadersSprites/alien_sprite_cyan.png", "cyan alien");	
+		alienImagePurple = loadImg("SpaceInvadersSprites/alien_sprite_purple.png", "purple alien");	
+		
+		
+		spawnAliens(score);
 		
 		redrawTimer = new Timer(1000/60, this);
 		redrawTimer.start();
@@ -66,9 +77,13 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		
 		alienRandomTimer.start();
 		
-		for(int i = 0; i < 5; i++) {
-			aliens.add(new Alien(80 + (100 * i), 70, 60, 45, Color.GREEN, 20, 1, alienImageGreen));
-		}
+		alienSpawnTimer = new Timer(1000 * 10, ev -> {
+			spawnAliens(score);
+		});
+		
+		alienSpawnTimer.start();
+		
+		
 		
 		setFocusable(true);
 		requestFocusInWindow(true);
@@ -76,11 +91,85 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 
 	}
 	
+	public BufferedImage loadImg(String filePath, String name) {
+		
+		BufferedImage img;
+		
+		try {
+			img = ImageIO.read(new File(filePath));
+		} catch (IOException e) {
+			System.out.println("Failed to load " + name + ":" + e.getMessage());
+			img = null;
+		}
+		
+		
+		return img;
+		
+	}
+	
 	public void reloadAmmo() {
 		bulletStack.clear();
 		for (int i = 0; i < 6; i++) {
 			bulletStack.push(new Bullet(-10, -10, 5, 10, Color.RED, 800, 1));
 		}
+	}
+	
+	
+	public void spawnAliens(int score) {
+		for(int i = 0; i < 5; i++) {
+			
+			int x = 80 + (100 * i);
+			int y = 70;
+			
+			Alien alien = createAlienBasedOnScore(x, y, score);
+			aliens.add(alien);
+		}
+	}
+	
+	public Alien createAlienBasedOnScore(int x, int y, int score) {
+		int clampedScore = Math.min(Math.max(score, 0), 100);
+		
+		int greenWeight;
+		int redWeight;
+		int cyanWeight;
+		int purpleWeight;
+		
+		if (clampedScore < 25) {
+			greenWeight = 80;
+			redWeight = 8;
+			cyanWeight = 8;
+			purpleWeight = 4;
+		}
+		else if(clampedScore < 75) {
+			greenWeight = 20;
+			redWeight = 35;
+			cyanWeight = 35;
+			purpleWeight = 10;
+		}
+		else {
+			greenWeight = 10;
+			redWeight = 20;
+			cyanWeight = 20;
+			purpleWeight = 50;
+		}
+		
+		
+		int rand = (int) (Math.random() * 100);
+		
+		if (rand < greenWeight) {
+			return new GreenAlien(x,  y, alienImageGreen);
+		}
+		else if (rand < redWeight + greenWeight) {
+			return new RedAlien(x, y, alienImageRed);
+		}
+		else if (rand < cyanWeight + redWeight + greenWeight) {
+			return new CyanAlien(x, y, alienImageCyan);
+		}
+		else {
+			return new PurpleAlien(x, y, alienImagePurple);
+		}
+		
+		
 	}
 	
 	@Override
@@ -128,6 +217,7 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
         }
         
         drawScore(g);
+        drawLives(g);
 				
 		lastTime = System.nanoTime();
 		
@@ -195,6 +285,20 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		g.drawString("Score: " + score, 10, 30);
 	}
 	
+	public void drawLives(Graphics g) {
+		int radius = 10;
+		int spacing = 5;
+		int startX = 10;
+		int startY = 40;
+		
+		g.setColor(Color.RED);
+		
+		for(int i = 0; i < lives; i ++) {
+			g.fillOval(startX + i * (radius * 2 + spacing), startY, radius * 2, radius * 2);
+		}
+		
+	}
+	
 	public void checkBulletCollision() {
 
 		for(Bullet bullet: bullets) {
@@ -256,6 +360,18 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 			player.right = false;
 		}
 	}
+	
+	public void checkLoss() {
+		for(Alien alien: aliens) {
+			if(alien.y + alien.height >= 770 ) {
+				alien.isActive = false;
+				lives--;
+			}
+		}
+		
+		
+		
+	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
@@ -289,6 +405,8 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 				alien.update(deltaTime);
 			}
 		}
+		
+		checkLoss();
 		
 		
 		repaint();
