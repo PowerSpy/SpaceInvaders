@@ -23,13 +23,13 @@ import javax.swing.JPanel;
 
 public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	
-	Player player = new Player(275, 710, 50, 50, Color.PINK, 300);
+	Player player;
 	
 	Timer redrawTimer;
 	Timer alienRandomTimer;
 	Timer alienSpawnTimer;
 	
-	long lastTime = System.nanoTime();
+	long lastTime;
 	float deltaTime;
 
 	ArrayList<Alien> aliens;
@@ -48,7 +48,45 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	BufferedImage alienImageCyan;
 	BufferedImage alienImagePurple;
 	
+	BufferedImage playerImage;
+	
+	
+	int gameState;
+	
+	static final int MENU = 0;
+	
+	static final int GAME = 1;
+	
+	static final int GAMEOVER = 2;
+	
 	public GamePanel() {
+		
+		
+		
+		
+		playerImage = loadImg("SpaceInvadersSprites/player.png", "player");
+		alienImageGreen = loadImg("SpaceInvadersSprites/alien_sprite_green.png", "green alien");		
+		alienImageRed = loadImg("SpaceInvadersSprites/alien_sprite_red.png", "red alien");	
+		alienImageCyan = loadImg("SpaceInvadersSprites/alien_sprite_cyan.png", "cyan alien");	
+		alienImagePurple = loadImg("SpaceInvadersSprites/alien_sprite_purple.png", "purple alien");	
+		
+				
+		redrawTimer = new Timer(1000/60, this);
+		redrawTimer.start();
+		
+		
+		
+		
+		
+		setFocusable(true);
+		requestFocusInWindow(true);
+		addKeyListener(this);
+
+	}
+	
+	public void startGame() {
+		
+		gameState = MENU;
 		
 		score = 0;	
 		lives = 3;
@@ -58,18 +96,8 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		bullets = new ArrayList<Bullet>();
 		aliens = new ArrayList<Alien>();
 		
-		
-		
-		alienImageGreen = loadImg("SpaceInvadersSprites/alien_sprite_green.png", "green alien");		
-		alienImageRed = loadImg("SpaceInvadersSprites/alien_sprite_red.png", "red alien");	
-		alienImageCyan = loadImg("SpaceInvadersSprites/alien_sprite_cyan.png", "cyan alien");	
-		alienImagePurple = loadImg("SpaceInvadersSprites/alien_sprite_purple.png", "purple alien");	
-		
-		
+		player = new Player(275, 710, 50, 50, Color.PINK, 300, playerImage);
 		spawnAliens(score);
-		
-		redrawTimer = new Timer(1000/60, this);
-		redrawTimer.start();
 		
 		alienRandomTimer = new Timer(1000/10, ev -> {
 			randomlySwitchAlienDirections();
@@ -83,12 +111,8 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		
 		alienSpawnTimer.start();
 		
+		lastTime = System.nanoTime();
 		
-		
-		setFocusable(true);
-		requestFocusInWindow(true);
-		addKeyListener(this);
-
 	}
 	
 	public BufferedImage loadImg(String filePath, String name) {
@@ -175,6 +199,32 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 	@Override
 	public void paintComponent(Graphics g) {
 		
+		if(gameState == MENU) {
+			Menu(g);
+		}
+		else if(gameState == GAME) {
+			GameLoop(g);
+		}
+		else {
+			GameOver(g);
+		}
+		
+	}
+	
+	public void Menu(Graphics g) {
+		
+		g.setColor(Color.BLACK);
+		g.fillRect(0, 0, getWidth(), getHeight());
+		
+		g.setColor(Color.WHITE);
+		g.setFont(new Font("Arial", Font.BOLD, 48));
+		g.drawString("SPACE INVADERS", 80, 200);
+		
+		g.setFont(new Font("Arial", Font.BOLD, 24));
+		g.drawString("Press ENTER to Start!", 170, 300);
+		
+	}
+	public void GameLoop(Graphics g) {
 		deltaTime = (System.nanoTime() - lastTime) / 1_000_000_000.0f; // Time elapsed in seconds since the last frame
 		
 		g.setColor(Color.BLACK);
@@ -220,7 +270,20 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
         drawLives(g);
 				
 		lastTime = System.nanoTime();
+	}
+	
+	public void GameOver(Graphics g) {
+		g.setColor(Color.BLACK);
+		g.fillRect(0, 0, getWidth(), getHeight());
 		
+		g.setColor(Color.RED);
+		g.setFont(new Font("Arial", Font.BOLD, 48));
+		g.drawString("GAME OVER", 150, 200);
+		
+		g.setColor(Color.WHITE);
+		g.setFont(new Font("Arial", Font.BOLD, 24));
+		g.drawString("Score: " + score, 250, 300);
+		g.drawString("Press ENTER to return to MENU", 110, 350);
 	}
 	
 	public void randomlySwitchAlienDirections() {
@@ -241,38 +304,50 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 
 	@Override
 	public void keyPressed(KeyEvent e) {
-		if(e.getKeyCode() == KeyEvent.VK_W) {
-			player.up = true;
-		}
-		if(e.getKeyCode() == KeyEvent.VK_S) {
-			player.down = true;
-		}
-		if(e.getKeyCode() == KeyEvent.VK_A) {
-			player.left = true;
-		}
-		if(e.getKeyCode() == KeyEvent.VK_D) {
-			player.right = true;
-		}
-		if(e.getKeyCode() == KeyEvent.VK_SPACE) {
-			if(!reloading && !bulletStack.isEmpty()) {
-				Bullet bullet = bulletStack.pop();
-				int bulletWidth = 5;
-				int bulletHeight = 10;
-				bullet.x = player.x + (player.width/2.0f) - (bulletWidth / 2.0f);
-				bullet.y = player.y;
-				bullets.add(bullet);
+
+		if(e.getKeyCode() == KeyEvent.VK_ENTER) {
+			if(gameState == MENU) {
+				startGame();
+				gameState = GAME;
+			}
+			else if(gameState == GAMEOVER) {
+				gameState = MENU;
 			}
 		}
-		if(e.getKeyCode() == KeyEvent.VK_R) {
-			if(!reloading) {
-				reloading = true;
-				// Set a timer to reload in 1 second
-				Timer reloadTimer = new Timer(1000, ev -> {
-					reloadAmmo();
-					reloading = false;
-				});
-				reloadTimer.setRepeats(false);
-				reloadTimer.start();
+		if (gameState == GAME) {
+			if(e.getKeyCode() == KeyEvent.VK_W) {
+				player.up = true;
+			}
+			if(e.getKeyCode() == KeyEvent.VK_S) {
+				player.down = true;
+			}
+			if(e.getKeyCode() == KeyEvent.VK_A) {
+				player.left = true;
+			}
+			if(e.getKeyCode() == KeyEvent.VK_D) {
+				player.right = true;
+			}
+			if(e.getKeyCode() == KeyEvent.VK_SPACE) {
+				if(!reloading && !bulletStack.isEmpty()) {
+					Bullet bullet = bulletStack.pop();
+					int bulletWidth = 5;
+					int bulletHeight = 10;
+					bullet.x = player.x + (player.width/2.0f) - (bulletWidth / 2.0f);
+					bullet.y = player.y;
+					bullets.add(bullet);
+				}
+			}
+			if(e.getKeyCode() == KeyEvent.VK_R) {
+				if(!reloading) {
+					reloading = true;
+					// Set a timer to reload in 1 second
+					Timer reloadTimer = new Timer(1000, ev -> {
+						reloadAmmo();
+						reloading = false;
+					});
+					reloadTimer.setRepeats(false);
+					reloadTimer.start();
+				}
 			}
 		}
 		
@@ -370,13 +445,15 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		}
 		
 		
+		if(lives <= 0) {
+			gameState = GAMEOVER;					
+		}
+		
+		
 		
 	}
-
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		// TODO Auto-generated method stub
-		
+	
+	public void updateGameLoop() {
 		checkBulletCollision();
 		player.update(deltaTime);
 		
@@ -407,6 +484,15 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener{
 		}
 		
 		checkLoss();
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+		
+		if(gameState == GAME) {
+			updateGameLoop();
+		}
 		
 		
 		repaint();
